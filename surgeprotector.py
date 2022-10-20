@@ -2,11 +2,16 @@
 
 from collections import defaultdict
 import os
+import os.path
+import re
 import sys
 import time
 
 import click
 import psutil
+
+
+EXIT_POLICY_RE = re.compile(r'ExitPolicy reject \[?([0-9a-z.:]+)\]? # (\d+)')
 
 
 @click.group()
@@ -29,29 +34,51 @@ def show(number):
 
 
 @main.command()
-@click.argument('output', type=click.Path(dir_okay=False, allow_dash=True))
+@click.argument('output', type=click.Path(dir_okay=False))
 @click.argument('limit', type=int)
+@click.option('--ttl',
+              help='Number of seconds after which "ExitPolicy" lines expire.',
+              default=3600,
+              show_default=True)
 @click.option('--command', '-c',
               help='Execute this command to reload Tor configuration.')
-def update(limit, output, command):
+def update(limit, output, ttl, command):
     """Update "ExitPolicy" lines for flooded IP addresses in OUTPUT.
 
     An IP address is considered flooded over LIMIT TCP connections.
     """
-    timestamp = int(time.time())
+    now = int(time.time())
+    updated = False  # True if OUTPUT needs updating
+    lines = []  # Lines for OUTPUT
+    known = set()  # Known IP addresses from OUTPUT
+    if os.path.exists(output):
+        with click.open_file(output) as f:
+            for line in f:
+                m = EXIT_POLICY_RE.match(line.strip())
+                if m is None:
+                    continue
+                addr = m.group(1)
+                timestamp = int(m.group(2))
+                if timestamp + ttl < now:
+                    updated = True
+                else:
+                    lines.append(line)
+                    known.add(addr)
     connections = get_connections()
+    connections = {k: v for k, v in connections.items() if k not in known}
     connections = {k: v for k, v in connections.items() if v > limit}
-    if not connections:
-        return
-    with click.open_file(output, mode='w') as f:
-        for addr in connections.keys():
-            if ':' in addr:
-                line = f'ExitPolicy reject [{addr}] # {timestamp}\n'
-            else:
-                line = f'ExitPolicy reject {addr} # {timestamp}\n'
-            f.write(line)
-    if command:
-        os.system(command)
+    for addr in connections.keys():
+        if ':' in addr:
+            lines.append(f'ExitPolicy reject [{addr}] # {now}\n')
+        else:
+            lines.append(f'ExitPolicy reject {addr} # {now}\n')
+        updated = True
+    if updated:
+        with click.open_file(output, mode='w') as f:
+            for line in lines:
+                f.write(line)
+        if command:
+            os.system(command)
 
 
 def get_connections():
