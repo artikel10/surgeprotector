@@ -37,17 +37,18 @@ def show(number):
 @click.argument('output', type=click.Path(dir_okay=False))
 @click.argument('limit', type=int)
 @click.option('--ttl',
-              help='Number of seconds after which "ExitPolicy" lines expire.',
-              default=3600,
+              help='Number of hours after which "ExitPolicy" lines expire.',
+              default=24,
               show_default=True)
 @click.option('--command', '-c',
-              help='Execute this command to reload Tor configuration.')
+              help='Execute this command if OUTPUT changed.')
 def update(limit, output, ttl, command):
     """Update "ExitPolicy" lines for flooded IP addresses in OUTPUT.
 
     An IP address is considered flooded over LIMIT TCP connections.
     """
     now = int(time.time())
+    ttl = ttl * 3600
     updated = False  # True if OUTPUT needs updating
     lines = []  # Lines for OUTPUT
     known = set()  # Known IP addresses from OUTPUT
