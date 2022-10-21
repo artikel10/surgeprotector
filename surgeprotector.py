@@ -16,6 +16,7 @@ EXIT_POLICY_RE = re.compile(r'ExitPolicy reject \[?([0-9a-z.:]+)\]? # (\d+)')
 
 @click.group()
 def main():
+    """Block Tor Exit traffic to flooded IP addresses via ExitPolicy."""
     pass
 
 
@@ -37,13 +38,13 @@ def show(number):
 @click.argument('output', type=click.Path(dir_okay=False))
 @click.argument('limit', type=int)
 @click.option('--ttl',
-              help='Number of hours after which "ExitPolicy" lines expire.',
+              help='Number of hours after which ExitPolicy lines expire.',
               default=24,
               show_default=True)
 @click.option('--command', '-c',
               help='Execute this command if OUTPUT changed.')
 def update(limit, output, ttl, command):
-    """Update "ExitPolicy" lines for flooded IP addresses in OUTPUT.
+    """Update ExitPolicy lines for flooded IP addresses in OUTPUT.
 
     An IP address is considered flooded over LIMIT TCP connections.
     """
