@@ -25,13 +25,25 @@ def main():
               help='Number of IP addresses to show.',
               default=10,
               show_default=True)
-def show(number):
-    """Show IP addresses with the most TCP connections."""
-    connections = get_connections()
-    connections = [(v, k) for k, v in connections.items()]
-    connections.sort(key=lambda conn: conn[0])
-    for conn in connections[-number:]:
-        print(f'{conn[0]:6} {conn[1]}')
+@click.option('--file', '-f',
+              help='torrc fragment to show.',
+              type=click.Path(exists=True, dir_okay=False))
+def show(number, file):
+    """Show IP addresses with the most TCP connections.
+
+    If --file is used, show IP addresses and their timestamps from the torrc
+    fragment instead.
+    """
+    if file is None:
+        connections = [(v, k) for k, v in get_connections().items()]
+        connections.sort(key=lambda conn: conn[0])
+        for conn in connections[-number:]:
+            click.echo(f'{conn[0]:6} {conn[1]}')
+    else:
+        for addr, timestamp in get_addresses(file):
+            ts_struct = time.gmtime(timestamp)
+            ts_string = time.strftime('%Y-%m-%dT%H:%M:%SZ', ts_struct)
+            click.echo(f'{ts_string} {addr}')
 
 
 @main.command()
@@ -51,36 +63,42 @@ def update(limit, output, ttl, command):
     now = int(time.time())
     ttl = ttl * 3600
     updated = False  # True if OUTPUT needs updating
-    lines = []  # Lines for OUTPUT
-    known = set()  # Known IP addresses from OUTPUT
+    addresses = {}  # IP addresses and timestamps for OUTPUT
     if os.path.exists(output):
-        with click.open_file(output) as f:
-            for line in f:
-                m = EXIT_POLICY_RE.match(line.strip())
-                if m is None:
-                    continue
-                addr = m.group(1)
-                timestamp = int(m.group(2))
-                if timestamp + ttl < now:
-                    updated = True
-                else:
-                    lines.append(line)
-                    known.add(addr)
-    connections = get_connections()
-    connections = {k: v for k, v in connections.items() if k not in known}
-    connections = {k: v for k, v in connections.items() if v > limit}
-    for addr in connections.keys():
-        if ':' in addr:
-            lines.append(f'ExitPolicy reject [{addr}] # {now}\n')
-        else:
-            lines.append(f'ExitPolicy reject {addr} # {now}\n')
+        for addr, timestamp in get_addresses(output):
+            if now > timestamp + ttl:
+                updated = True
+            else:
+                addresses[addr] = timestamp
+    for addr, count in get_connections().items():
+        if addr in addresses or limit >= count:
+            continue
+        addresses[addr] = now
         updated = True
     if updated:
         with click.open_file(output, mode='w') as f:
-            for line in lines:
+            for addr, timestamp in addresses.items():
+                if ':' in addr:
+                    line = f'ExitPolicy reject [{addr}] # {timestamp}\n'
+                else:
+                    line = f'ExitPolicy reject {addr} # {timestamp}\n'
                 f.write(line)
         if command:
             os.system(command)
+
+
+def get_addresses(path):
+    """Return IP address/timestamp tuples from the torrc fragment."""
+    result = []
+    with click.open_file(path) as f:
+        for line in f:
+            m = EXIT_POLICY_RE.match(line.strip())
+            if m is None:
+                continue
+            addr = m.group(1)
+            timestamp = int(m.group(2))
+            result.append((addr, timestamp))
+    return result
 
 
 def get_connections():
