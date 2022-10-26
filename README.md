@@ -31,3 +31,19 @@ pipenv run ./surgeprotector.py show
 # Update a torrc fragment and restart tor on changes
 pipenv run ./surgeprotector.py update /etc/tor/surgeprotector 100000 -c "systemctl restart tor"
 ```
+
+If you don't want to restart all of your relay instances at once, you could run
+a shell script similar to this:
+
+```bash
+#!/bin/bash
+
+# Update ExitPolicy immediately
+systemctl reload tor
+# Wait for reload
+sleep 5
+# Restart instances starting with "exit" sequentially
+for i in /etc/tor/instances/exit*; do
+	systemctl restart "tor@$(basename "$i")"
+done
+```
