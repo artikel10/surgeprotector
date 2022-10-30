@@ -55,27 +55,33 @@ def show(number, file):
               show_default=True)
 @click.option('--command', '-c',
               help='Execute this command if OUTPUT changed.')
-def update(limit, output, ttl, command):
+@click.option('--expired', '-e',
+              help='Execute this command if OUTPUT entries expired.')
+def update(limit, output, ttl, command, expired):
     """Update ExitPolicy lines for flooded IP addresses in OUTPUT.
 
     An IP address is considered flooded over LIMIT TCP connections.
+
+    The --expired command is executed if OUTPUT entries expired, but no new
+    entries were added. The default is to use the --command option.
     """
     now = int(time.time())
     ttl = ttl * 3600
-    updated = False  # True if OUTPUT needs updating
+    ip_blocked = False  # True if OUTPUT entries were added
+    ip_expired = False  # True if OUTPUT entries expired
     addresses = {}  # IP addresses and timestamps for OUTPUT
     if os.path.exists(output):
         for addr, timestamp in get_addresses(output):
             if now > timestamp + ttl:
-                updated = True
+                ip_expired = True
             else:
                 addresses[addr] = timestamp
     for addr, count in get_connections().items():
         if addr in addresses or limit >= count:
             continue
         addresses[addr] = now
-        updated = True
-    if updated:
+        ip_blocked = True
+    if ip_blocked or ip_expired:
         with click.open_file(output, mode='w') as f:
             for addr, timestamp in addresses.items():
                 if ':' in addr:
@@ -83,7 +89,9 @@ def update(limit, output, ttl, command):
                 else:
                     line = f'ExitPolicy reject {addr} # {timestamp}\n'
                 f.write(line)
-        if command:
+        if not ip_blocked and expired:
+            os.system(expired)
+        elif command:
             os.system(command)
 
 
