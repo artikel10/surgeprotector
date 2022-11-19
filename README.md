@@ -25,6 +25,9 @@ Usage example:
 # Install dependencies
 pipenv install
 
+# Show usage information
+pipenv run ./surgeprotector.py --help
+
 # Show "popular" IP addresses and their TCP connection counts
 pipenv run ./surgeprotector.py show
 
@@ -36,8 +39,6 @@ If you don't want to restart all of your relay instances at once, you could run
 a shell script similar to this:
 
 ```bash
-#!/bin/bash
-
 # Update ExitPolicy immediately
 systemctl reload tor
 # Wait for reload
@@ -47,3 +48,7 @@ for i in /etc/tor/instances/exit*; do
 	systemctl restart "tor@$(basename "$i")"
 done
 ```
+
+**Please note:** if using a script like above, you should implement some kind of
+locking mechanism, in case multiple IP addresses are attacked in a short amount
+of time.
