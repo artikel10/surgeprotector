@@ -1,0 +1,50 @@
+#!/bin/bash -e
+
+# Wrapper for surgeprotector.py on systemd-based hosts.
+
+TORRC="${TORRC:-/etc/tor/surgeprotector}"
+TTL="${TTL:-24}"
+
+FOLDER="$(dirname "$0")"
+LOCK="$FOLDER/.lock"
+INSTANCES="$FOLDER/.instances"
+
+if [ $# -eq 0 ]; then
+	echo "Usage:"
+	echo "$(basename "$0") update <limit> <instances>"
+	echo "$(basename "$0") restart <instances>"
+	echo "$(basename "$0") show [options]"
+	exit 1
+fi
+
+cd "$FOLDER" || exit 1
+
+if [ "$1" = "update" ]; then
+	shift
+	LIMIT="$1"
+	shift
+	pipenv run ./surgeprotector.py update "$TORRC" "$LIMIT" --ttl "$TTL" -c "$0 restart $*" -e "systemctl reload tor"
+elif [ "$1" = "restart" ]; then
+	shift
+	systemctl reload tor
+	mkdir -p "$INSTANCES"
+	for f in "$@"; do
+		touch "$INSTANCES/$(basename "$f")"
+	done
+	[ -f "$LOCK" ] && exit 0
+	touch "$LOCK"
+	while test -n "$(find "$INSTANCES" -type f -print -quit)"; do
+		for f in "$INSTANCES"/*; do
+			echo "Restarting $(basename "$f")"
+			rm "$f"
+			systemctl restart "tor@$(basename "$f")"
+		done
+	done
+	rm "$LOCK"
+elif [ "$1" = "show" ]; then
+	shift
+	pipenv run ./surgeprotector.py show "$@"
+else
+	echo "Unknown command: $1"
+	exit 1
+fi

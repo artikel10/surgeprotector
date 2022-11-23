@@ -9,8 +9,8 @@ An IP address is considered flooded above a certain number of TCP connections.
 Install the dependencies into a Python virtual environment via `Pipfile` or
 `requirements.txt`, then run `./surgeprotector.py --help` for more information.
 
-To automatically update your Exit instances, create a *torrc* fragment, i.e.
-`touch /etc/tor/surgeprotector`, and include it in your *torrc* file(s):
+To automatically update your Exit instances, create a `torrc` fragment, i.e.
+`touch /etc/tor/surgeprotector`, and include it in your `torrc` file(s):
 
 ```
 %include /etc/tor/surgeprotector
@@ -25,9 +25,6 @@ Usage example:
 # Install dependencies
 pipenv install
 
-# Show usage information
-pipenv run ./surgeprotector.py --help
-
 # Show "popular" IP addresses and their TCP connection counts
 pipenv run ./surgeprotector.py show
 
@@ -36,19 +33,12 @@ pipenv run ./surgeprotector.py update /etc/tor/surgeprotector 100000 -c "systemc
 ```
 
 If you don't want to restart all of your relay instances at once, you could run
-a shell script similar to this:
+a shell script implementing a less disruptive strategy instead. The included
+[fusebox](fusebox) script might work for you, if your relay instances are
+managed by systemd as `tor@INSTANCENAME`.
 
-```bash
-# Update ExitPolicy immediately
-systemctl reload tor
-# Wait for reload
-sleep 5
-# Restart instances starting with "exit" sequentially
-for i in /etc/tor/instances/exit*; do
-	systemctl restart "tor@$(basename "$i")"
-done
+Example `crontab` entry:
+
 ```
-
-**Please note:** if using a script like above, you should implement some kind of
-locking mechanism, in case multiple IP addresses are attacked in a short amount
-of time.
+* * * * * /opt/surgeprotector/fusebox update 100000 /etc/tor/instances/*
+```

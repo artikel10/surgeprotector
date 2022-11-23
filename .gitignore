@@ -1,2 +1,6 @@
 # Directories
+.instances/
 tmp/
+
+# Files
+.lock
