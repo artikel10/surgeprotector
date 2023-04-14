@@ -73,6 +73,7 @@ def update(limit, output, ttl, command, expired):
     if os.path.exists(output):
         for addr, timestamp in get_addresses(output):
             if now > timestamp + ttl:
+                click.echo(f'Expired: {addr}')
                 ip_expired = True
             else:
                 addresses[addr] = timestamp
@@ -80,6 +81,7 @@ def update(limit, output, ttl, command, expired):
         if addr in addresses or limit >= count:
             continue
         addresses[addr] = now
+        click.echo(f'Added: {addr}')
         ip_blocked = True
     if ip_blocked or ip_expired:
         with click.open_file(output, mode='w') as f:

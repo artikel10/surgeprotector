@@ -1,0 +1,13 @@
+[Unit]
+Description=Block Tor Exit traffic to flooded IP addresses
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+Environment="SURGE_LIMIT=NN"
+Environment="SURGE_INSTANCES=/etc/tor/instances/exit*"
+ExecStart=/opt/surgeprotector/fusebox update ${SURGE_LIMIT} ${SURGE_INSTANCES}
+
+[Install]
+WantedBy=multi-user.target

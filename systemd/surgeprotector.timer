@@ -1,0 +1,8 @@
+[Unit]
+Description=Block Tor Exit traffic to flooded IP addresses
+
+[Timer]
+OnCalendar=*-*-* *:*
+
+[Install]
+WantedBy=timers.target

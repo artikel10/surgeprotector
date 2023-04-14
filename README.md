@@ -23,7 +23,7 @@ Usage example:
 
 ```bash
 # Install dependencies
-pipenv install
+pipenv sync
 
 # Show "popular" IP addresses and their TCP connection counts
 pipenv run ./surgeprotector.py show
@@ -42,3 +42,6 @@ Example `crontab` entry:
 ```
 * * * * * /opt/surgeprotector/fusebox update 100000 /etc/tor/instances/*
 ```
+
+The directory `systemd` contains a service and timer file for `surgeprotector`
+(some assembly required).
